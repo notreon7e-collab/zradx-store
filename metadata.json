@@ -1,0 +1,6 @@
+{
+  "name": "ZRADX STORE",
+  "description": "A premium, dark-themed gaming top-up and account marketplace with standard Esports styles and advanced admin dashboards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,120 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        getUserRole() == 'admin';
+    }
+
+    // --- COLLECTION RULES ---
+
+    // 1. Users Collection
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isOwner(userId) && 
+        incoming().uid == request.auth.uid &&
+        incoming().role == 'user' && 
+        incoming().walletBalance == 0 &&
+        incoming().isVerifiedSeller == false;
+      
+      // Allow balance changes and role adjustments ONLY by admin, or self-updates of display names and non-sensitive fields
+      allow update: if isSignedIn() && (
+        isAdmin() || 
+        (isOwner(userId) && 
+         incoming().role == existing().role && 
+         incoming().walletBalance == existing().walletBalance && 
+         incoming().isVerifiedSeller == existing().isVerifiedSeller &&
+         incoming().email == existing().email)
+      );
+    }
+
+    // 2. Games Collection (R/O for users, R/W for Admin)
+    match /games/{gameId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 3. Topup Packages Collection (R/O for users, R/W for Admin)
+    match /topup_packages/{packageId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 4. Account Listings (All search/view, write restricts to Owner or Admin)
+    match /account_listings/{listingId} {
+      allow read: if true;
+      allow create: if isSignedIn() && 
+        incoming().sellerUid == request.auth.uid && 
+        incoming().status == 'pending' &&
+        incoming().price > 0;
+      
+      allow update: if isSignedIn() && (
+        isAdmin() || 
+        (incoming().sellerUid == request.auth.uid && 
+         existing().sellerUid == request.auth.uid &&
+         incoming().status == 'pending' && // users can edit while pending
+         existing().status == 'pending' &&
+         incoming().price > 0)
+      );
+      
+      allow delete: if isAdmin() || (isSignedIn() && existing().sellerUid == request.auth.uid && existing().status == 'pending');
+    }
+
+    // 5. Orders Collection (Users view/create own, Admins view/update status)
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && (isAdmin() || existing().userUid == request.auth.uid);
+      allow create: if isSignedIn() && incoming().userUid == request.auth.uid && incoming().status == 'pending';
+      allow update: if isAdmin(); // only admin transitions status and files delivery logs
+    }
+
+    // 6. Promo Codes Collection (Users can get a promo, Admin can fully read/write)
+    match /promo_codes/{codeId} {
+      allow get: if isSignedIn();
+      allow list, write: if isAdmin();
+    }
+
+    // 7. Chat Messages Collection (Users can view and add their own, Admin can do all)
+    match /chat_messages/{messageId} {
+      allow read, write: if isSignedIn() && (isAdmin() || resource.data.userUid == request.auth.uid || incoming().userUid == request.auth.uid);
+    }
+
+    // 8. Wallet Transactions Collection
+    match /wallet_transactions/{transactionId} {
+      allow read: if isSignedIn() && (isAdmin() || existing().userUid == request.auth.uid);
+      allow create: if isSignedIn() && incoming().userUid == request.auth.uid && incoming().amount > 0;
+      allow update, delete: if isAdmin();
+    }
+  }
+}

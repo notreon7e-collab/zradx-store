@@ -1,0 +1,160 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information, wallet balance, and configuration.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth unique identifier." },
+        "email": { "type": "string", "description": "Email address of the user." },
+        "displayName": { "type": "string", "description": "Public name." },
+        "walletBalance": { "type": "number", "description": "Current coins/credits in wallet." },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "Access level identifier." },
+        "isVerifiedSeller": { "type": "boolean", "description": "True if user is verified to sell accounts." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "walletBalance", "role"]
+    },
+    "Game": {
+      "title": "Supported Game",
+      "description": "Game details and top-up modules configured by admin.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "categoryBannerUrl": { "type": "string" },
+        "categoryPhotoUrl": { "type": "string" },
+        "idFieldLabel": { "type": "string", "description": "Label for topup identifier (e.g. Player ID, UID)." }
+      },
+      "required": ["id", "name", "categoryBannerUrl"]
+    },
+    "TopUpPackage": {
+      "title": "Top-up Package",
+      "description": "Individual diamond/gems packages available for purchase.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "gameId": { "type": "string" },
+        "name": { "type": "string", "description": "e.g. 100 Diamonds" },
+        "price": { "type": "number" },
+        "discountPrice": { "type": "number" },
+        "stock": { "type": "number" }
+      },
+      "required": ["id", "gameId", "name", "price"]
+    },
+    "AccountListing": {
+      "title": "Account Listing",
+      "description": "Gaming account listed for sale by standard users or pre-listed by admin.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "gameId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "level": { "type": "number" },
+        "skinsCount": { "type": "number" },
+        "heroesCount": { "type": "number" },
+        "rank": { "type": "string" },
+        "price": { "type": "number" },
+        "sellerUid": { "type": "string" },
+        "sellerName": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "active", "sold", "rejected"] },
+        "screenshots": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "gameId", "title", "price", "sellerUid", "status"]
+    },
+    "Order": {
+      "title": "Transaction Order",
+      "description": "Consolidated purchases containing top-ups or specific game accounts.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userUid": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "type": { "type": "string", "enum": ["topup", "account"] },
+        "targetGameId": { "type": "string" },
+        "targetPlayerId": { "type": "string", "description": "For topups: Game account destination ID." },
+        "details": { "type": "object", "description": "Details, package description, skin lists, etc." },
+        "pricePaid": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "completed", "refunded"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userUid", "type", "pricePaid", "status"]
+    },
+    "PromoCode": {
+      "title": "Promo Code",
+      "description": "Store discount coupons.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "discountPercentage": { "type": "number" },
+        "maxDiscount": { "type": "number" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["code", "discountPercentage", "isActive"]
+    },
+    "ChatMessage": {
+      "title": "Support Message",
+      "description": "Continuous real-time dialog message.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userUid": { "type": "string" },
+        "sender": { "type": "string", "enum": ["user", "admin", "system"] },
+        "senderName": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userUid", "sender", "text", "createdAt"]
+    },
+    "WalletTransaction": {
+      "title": "Wallet Transaction",
+      "description": "Log records of cash flow additions or item checkouts.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userUid": { "type": "string" },
+        "type": { "type": "string", "enum": ["deposit", "purchase", "refund"] },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userUid", "type", "amount", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Individual user accounts storage."
+    },
+    "games/{gameId}": {
+      "schema": "Game",
+      "description": "Metadata config of supported Esports titles."
+    },
+    "topup_packages/{packageId}": {
+      "schema": "TopUpPackage",
+      "description": "Diamond and Gem top-up options for sale."
+    },
+    "account_listings/{listingId}": {
+      "schema": "AccountListing",
+      "description": "Skins/Rank marketplace listings."
+    },
+    "orders/{orderId}": {
+      "schema": "Order",
+      "description": "Track game top-ups or physical deliveries of accounts."
+    },
+    "promo_codes/{codeId}": {
+      "schema": "PromoCode",
+      "description": "Discount coupon logic registry."
+    },
+    "chat_messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Realtime help center interactions."
+    },
+    "wallet_transactions/{transactionId}": {
+      "schema": "WalletTransaction",
+      "description": "Audit trails for electronic wallet transactions."
+    }
+  }
+}
